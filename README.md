@@ -7,9 +7,11 @@ File layout:
 - `scripts/` - tools:
   - `run_experiment.py`: run one/all experiments and validate results.
   - `visualize.py`: render `results/outputs/cloth_frames.csv` to `results/outputs/cloth_sim.gif`.
+  - `run_all_scenes.py`: run all scenes and save per-scene outputs/GIFs.
 - `results/` - generated outputs only:
   - `metrics/` for per-step CSV + summary JSON.
-  - `outputs/` for frames/meta/GIF artifacts.
+  - `outputs/scenes/` for per-scene frames/meta files.
+  - `outputs/gif/` for per-scene GIF files.
 
 Quick usage:
 
@@ -18,4 +20,5 @@ g++ -O2 -std=c++17 -I simCode/include -o simCode/cloth_sim simCode/cloth_sim_seq
 ./simCode/cloth_sim configs/experiments/drop_on_sphere.json
 python scripts/run_experiment.py --all
 python scripts/visualize.py
+python scripts/run_all_scenes.py -v -t
 ```
