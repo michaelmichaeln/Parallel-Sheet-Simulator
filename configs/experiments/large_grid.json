@@ -24,8 +24,8 @@
   },
   "output": {
     "save_every": 10,
-    "frames_path": "cloth_frames.csv",
-    "meta_path": "cloth_meta.csv",
+    "frames_path": "results/outputs/cloth_frames.csv",
+    "meta_path": "results/outputs/cloth_meta.csv",
     "metrics_path": "results/metrics/"
   }
 }

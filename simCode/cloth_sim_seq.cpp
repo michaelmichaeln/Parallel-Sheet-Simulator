@@ -89,8 +89,8 @@ struct Config {
     Vec3  sphere_center  = {0.0f, -0.4f, 0.0f};  // Updated after ground_y is set
     
     // Output paths
-    std::string frames_path  = "cloth_frames.csv";
-    std::string meta_path    = "cloth_meta.csv";
+    std::string frames_path  = "results/outputs/cloth_frames.csv";
+    std::string meta_path    = "results/outputs/cloth_meta.csv";
     std::string metrics_path = "results/metrics/";
     
     void update_derived() {
