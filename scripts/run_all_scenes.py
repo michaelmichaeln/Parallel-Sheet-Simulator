@@ -7,6 +7,7 @@ Usage:
   python scripts/run_all_scenes.py -v
   python scripts/run_all_scenes.py -v --gif-prefix demo_ --gif-suffix _seq
   python scripts/run_all_scenes.py -t
+  python scripts/run_all_scenes.py -c -b
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ VISUALIZER_PATH = PROJECT_ROOT / "scripts" / "visualize.py"
 METRICS_DIR = PROJECT_ROOT / "results" / "metrics"
 SCENES_OUT_DIR = PROJECT_ROOT / "results" / "outputs" / "scenes"
 GIF_OUT_DIR = PROJECT_ROOT / "results" / "outputs" / "gif"
+THRESHOLDS_PATH = PROJECT_ROOT / "configs" / "thresholds.json"
+BENCH_GRID_SIZE = {"small": 25, "med": 35, "large": 50}
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,6 +47,18 @@ def parse_args() -> argparse.Namespace:
         "--timing",
         action="store_true",
         help="Print timing data for each scene in the terminal.",
+    )
+    parser.add_argument(
+        "-c",
+        "--correctness",
+        action="store_true",
+        help="Run threshold-based correctness checks from configs/thresholds.json.",
+    )
+    parser.add_argument(
+        "-b",
+        "--bench",
+        action="store_true",
+        help="Run size benchmark sweep (small, med, large) instead of all scenes.",
     )
     parser.add_argument(
         "--gif-prefix",
@@ -69,16 +84,62 @@ def ensure_required_paths() -> bool:
     return True
 
 
+def load_thresholds() -> dict:
+    if not THRESHOLDS_PATH.exists():
+        return {}
+    with open(THRESHOLDS_PATH, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+    return payload.get("thresholds", {})
+
+
+def validate_summary(summary_path: Path, thresholds: dict) -> tuple[bool, list[str]]:
+    if not summary_path.exists():
+        return False, [f"Summary file not found: {summary_path}"]
+
+    with open(summary_path, "r", encoding="utf-8") as f:
+        summary = json.load(f)
+
+    correctness = summary.get("correctness", {})
+    failures: list[str] = []
+
+    if "max_stretch_error" in thresholds:
+        actual = correctness.get("max_stretch_error", 0.0)
+        limit = thresholds["max_stretch_error"]
+        if actual > limit:
+            failures.append(f"stretch_error {actual:.4f} > {limit}")
+
+    if "max_energy_growth_ratio" in thresholds:
+        actual = correctness.get("max_energy_ratio", 1.0)
+        limit = thresholds["max_energy_growth_ratio"]
+        if actual > limit:
+            failures.append(f"energy_ratio {actual:.4f} > {limit}")
+
+    if not thresholds.get("nan_inf_allowed", False) and correctness.get("has_nan_inf", False):
+        failures.append("NaN/Inf detected")
+
+    return len(failures) == 0, failures
+
+
 def latest_summary_for_scene(scene_name: str) -> Path | None:
     summaries = sorted(METRICS_DIR.glob(f"{scene_name}_*_summary.json"), reverse=True)
     return summaries[0] if summaries else None
 
 
-def build_temp_config(config_path: Path, run_tag: str) -> tuple[Path, str, Path, Path]:
+def build_temp_config(
+    config_path: Path, run_tag: str, bench_size: str | None = None
+) -> tuple[Path, str, Path, Path]:
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
     scene_name = config.get("scene", config_path.stem)
+    if bench_size:
+        bench_dim = BENCH_GRID_SIZE[bench_size]
+        scene_name = f"{bench_size}_grid"
+        cloth_cfg = config.setdefault("cloth", {})
+        cloth_cfg["grid_w"] = bench_dim
+        cloth_cfg["grid_h"] = bench_dim
+        config["scene"] = scene_name
+
     output_cfg = config.setdefault("output", {})
     frames_path = SCENES_OUT_DIR / f"{scene_name}_{run_tag}_frames.csv"
     meta_path = SCENES_OUT_DIR / f"{scene_name}_{run_tag}_meta.csv"
@@ -113,8 +174,12 @@ def run_visualizer(frames_path: Path, gif_path: Path) -> bool:
     return True
 
 
-def run_scene(config_path: Path, args: argparse.Namespace, run_tag: str) -> bool:
-    temp_cfg, scene_name, frames_path, _ = build_temp_config(config_path, run_tag)
+def run_scene(
+    config_path: Path, args: argparse.Namespace, run_tag: str, thresholds: dict, bench_size: str | None = None
+) -> tuple[bool, str]:
+    temp_cfg, scene_name, frames_path, _ = build_temp_config(
+        config_path, run_tag, bench_size
+    )
     start = time.perf_counter()
     sim_ok = False
     try:
@@ -129,11 +194,28 @@ def run_scene(config_path: Path, args: argparse.Namespace, run_tag: str) -> bool
             print(f"FAILED: {scene_name}")
             if res.stderr.strip():
                 print(f"  {res.stderr.strip()}")
-            return False
+            return False, scene_name
 
-        print(f"PASSED: {scene_name}")
+        if args.correctness:
+            print(f"COMPLETED: {scene_name}")
+        else:
+            print(f"COMPLETED: {scene_name} (simulation run)")
 
         summary_path = latest_summary_for_scene(scene_name)
+        if args.correctness:
+            if summary_path and summary_path.exists():
+                passed, failures = validate_summary(summary_path, thresholds)
+                if passed:
+                    print("  correctness: PASS")
+                else:
+                    print("  correctness: FAIL")
+                    for failure in failures:
+                        print(f"    - {failure}")
+                    return False, scene_name
+            else:
+                print("  correctness: FAIL (missing summary)")
+                return False, scene_name
+
         if args.timing:
             wall_s = time.perf_counter() - start
             if summary_path and summary_path.exists():
@@ -153,7 +235,7 @@ def run_scene(config_path: Path, args: argparse.Namespace, run_tag: str) -> bool
         elif args.visualize:
             print(f"  Skipping GIF: frames file missing at {frames_path}")
 
-        return True
+        return True, scene_name
     finally:
         temp_cfg.unlink(missing_ok=True)
 
@@ -163,28 +245,48 @@ def main() -> int:
     if not ensure_required_paths():
         return 1
 
-    configs = sorted(EXPERIMENTS_DIR.glob("*.json"))
+    bench_sizes = ["small", "med", "large"] if args.bench else []
+    if args.bench:
+        # Bench mode runs size trials based on baseline scene settings.
+        configs = [EXPERIMENTS_DIR / "drop_on_sphere.json"]
+    else:
+        configs = sorted(EXPERIMENTS_DIR.glob("*.json"))
     if not configs:
-        print(f"No scene configs found in {EXPERIMENTS_DIR}")
+        if args.bench:
+            print("Missing baseline config: configs/experiments/drop_on_sphere.json")
+        else:
+            print(f"No scene configs found in {EXPERIMENTS_DIR}")
         return 1
+
+    thresholds = load_thresholds() if args.correctness else {}
 
     run_tag = time.strftime("%Y%m%d_%H%M%S")
     print(f"Run tag: {run_tag}")
     print(f"Scenes output: {SCENES_OUT_DIR}")
+    if args.bench:
+        print("Mode: size benchmark sweep (small, med, large)")
     if args.visualize:
         print(f"GIF output: {GIF_OUT_DIR}")
     print("-" * 60)
 
     failed = []
-    for config in configs:
-        ok = run_scene(config, args, run_tag)
-        if not ok:
-            failed.append(config.stem)
+    if args.bench:
+        baseline = configs[0]
+        for size in bench_sizes:
+            ok, scene_name = run_scene(baseline, args, run_tag, thresholds, bench_size=size)
+            if not ok:
+                failed.append(scene_name)
+    else:
+        for config in configs:
+            ok, scene_name = run_scene(config, args, run_tag, thresholds)
+            if not ok:
+                failed.append(scene_name)
 
     print("\n" + "=" * 60)
     print("RUN ALL SCENES SUMMARY")
     print("=" * 60)
-    print(f"Total scenes: {len(configs)}")
+    total_runs = len(bench_sizes) if args.bench else len(configs)
+    print(f"Total scenes: {total_runs}")
     print(f"Failed: {len(failed)}")
     if failed:
         print(f"Failed scenes: {', '.join(failed)}")
