@@ -5,6 +5,9 @@ __pycache__/
 simCode/cloth_sim
 results/*
 !results/metrics/
-!results/metrics/**
 !results/outputs/
-!results/outputs/**
+results/metrics/*
+results/outputs/*
+!results/metrics/.gitkeep
+!results/outputs/.gitkeep
+
