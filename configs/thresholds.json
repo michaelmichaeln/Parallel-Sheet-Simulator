@@ -1,0 +1,24 @@
+{
+  "description": "Pass/fail thresholds for correctness validation",
+  "thresholds": {
+    "max_stretch_error": 1.5,
+    "max_ground_penetration_depth": 0.001,
+    "max_sphere_penetration_depth": 0.001,
+    "max_energy_growth_ratio": 2.0,
+    "nan_inf_allowed": false
+  },
+  "thresholds_strict": {
+    "_comment": "Stricter thresholds for PBD/XPBD implementations",
+    "max_stretch_error": 0.05,
+    "max_ground_penetration_depth": 0.0001,
+    "max_sphere_penetration_depth": 0.0001,
+    "max_energy_growth_ratio": 1.2
+  },
+  "notes": {
+    "max_stretch_error": "Maximum relative stretch of any spring (|len - rest| / rest). 1.5 = 150% stretch tolerance for basic mass-spring. Use 0.05 for PBD.",
+    "max_ground_penetration_depth": "Maximum depth a particle can penetrate below ground plane (in world units).",
+    "max_sphere_penetration_depth": "Maximum depth a particle can penetrate inside the collision sphere.",
+    "max_energy_growth_ratio": "Total energy at any step should not exceed this ratio of initial energy.",
+    "nan_inf_allowed": "If true, simulation passes even with NaN/Inf values (not recommended)."
+  }
+}

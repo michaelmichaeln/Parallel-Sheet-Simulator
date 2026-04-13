@@ -1,0 +1,31 @@
+{
+  "scene": "large_grid",
+  "cloth": {
+    "size": 3.0,
+    "grid_w": 50,
+    "grid_h": 50,
+    "drop_y": 3.0
+  },
+  "physics": {
+    "dt": 0.005,
+    "steps": 1200,
+    "k_structural": 500,
+    "k_shear": 200,
+    "k_bend": 100,
+    "damping": 0.998,
+    "air_drag": 0.01
+  },
+  "collision": {
+    "ground_y": -1.0,
+    "ground_restitution": 0.05,
+    "ground_friction": 0.80,
+    "sphere_enabled": true,
+    "sphere_radius": 0.6
+  },
+  "output": {
+    "save_every": 10,
+    "frames_path": "results/outputs/cloth_frames.csv",
+    "meta_path": "results/outputs/cloth_meta.csv",
+    "metrics_path": "results/metrics/"
+  }
+}
