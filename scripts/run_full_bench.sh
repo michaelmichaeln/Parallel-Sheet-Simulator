@@ -7,11 +7,22 @@
 # ==============================================================================
 set -euo pipefail
 
+# Use a CUDA-compatible host compiler when available (CUDA 11.7 supports GCC <= 11).
+# Override manually by exporting CUDAHOSTCXX before running this script.
+if [ -z "${CUDAHOSTCXX:-}" ]; then
+    if command -v g++-11 >/dev/null 2>&1; then
+        CUDAHOSTCXX="$(command -v g++-11)"
+    else
+        CUDAHOSTCXX="$(command -v g++)"
+    fi
+fi
+
 echo "=== System Info ==="
 hostname
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader 2>/dev/null || echo "nvidia-smi not available"
 g++ --version | head -1
 nvcc --version | tail -1
+echo "CUDA host compiler: $CUDAHOSTCXX"
 echo ""
 
 BINDIR="bin"
@@ -39,7 +50,8 @@ g++ -O2 -std=c++17 -march=native -o "$BINDIR/cloth_sim_seq" cloth_sim_seq.cpp &&
 
 for v in v1 v2 v3 v4; do
     echo -n "  $v... "
-    nvcc -O2 -std=c++17 -arch=sm_75 -o "$BINDIR/cloth_sim_$v" "simCode/cloth_sim_$v.cu" 2>&1 && echo "OK" || echo "FAIL"
+    nvcc -O2 -std=c++17 -arch=sm_75 -ccbin "$CUDAHOSTCXX" \
+        -o "$BINDIR/cloth_sim_$v" "simCode/cloth_sim_$v.cu" 2>&1 && echo "OK" || echo "FAIL"
 done
 echo ""
 
