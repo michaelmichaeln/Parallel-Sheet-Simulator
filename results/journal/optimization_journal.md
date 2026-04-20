@@ -15,14 +15,14 @@
 Single-threaded C++ with `-O2 -march=native`. Semi-implicit Euler integration.  
 Iterates over all springs to compute Hooke's law forces, then integrates and handles collisions.
 
-### Timing (fill after running)
+### Timing
 
 | Grid Size | Particles | Springs | Time (ms) | Steps/s |
 |-----------|-----------|---------|-----------|---------|
-| 100x100   | 10,000    | 59,002  | _____     | _____   |
-| 250x250   | 62,500    | 371,252 | _____     | _____   |
-| 500x500   | 250,000   | 1,489,002 | _____   | _____   |
-| 1000x1000 | 1,000,000 | 5,970,002 | _____   | _____   |
+| 100x100   | 10,000    | 59,002  | 436.2     | 2751.0  |
+| 250x250   | 62,500    | 371,252 | 2752.5    | 436.0   |
+| 500x500   | 250,000   | 1,489,002 | 12208.8 | 98.3    |
+| 1000x1000 | 1,000,000 | 5,970,002 | 55321.5 | 21.7    |
 
 ### Observations
 - Sequential time should scale roughly linearly with spring count.
@@ -59,10 +59,10 @@ would be severe. Node-parallel avoids atomics entirely at the cost of some redun
 
 | Grid Size | Seq (ms) | V1 (ms) | Speedup |
 |-----------|----------|---------|---------|
-| 100x100   | _____    | _____   | _____x  |
-| 250x250   | _____    | _____   | _____x  |
-| 500x500   | _____    | _____   | _____x  |
-| 1000x1000 | _____    | _____   | _____x  |
+| 100x100   | 436.2    | 29.5027 | 14.78x  |
+| 250x250   | 2752.5   | 324.3722| 8.48x   |
+| 500x500   | 12208.8  | 1503.6295 | 8.11x |
+| 1000x1000 | 55321.5  | 6246.5688 | 8.85x |
 
 ### Key Takeaway
 _[Fill: Was the bottleneck as predicted? What does profiling show?]_
@@ -97,10 +97,10 @@ far fewer cache lines than reading 12 full `Particle` structs.
 
 | Grid Size | V1 (ms) | V2 (ms) | V2 Speedup | vs Seq |
 |-----------|---------|---------|------------|--------|
-| 100x100   | _____   | _____   | _____x     | _____x |
-| 250x250   | _____   | _____   | _____x     | _____x |
-| 500x500   | _____   | _____   | _____x     | _____x |
-| 1000x1000 | _____   | _____   | _____x     | _____x |
+| 100x100   | 29.5027 | 22.0086 | 1.34x      | 19.81x |
+| 250x250   | 324.3722| 215.3335| 1.51x      | 12.78x |
+| 500x500   | 1503.6295 | 852.4832 | 1.76x   | 14.32x |
+| 1000x1000 | 6246.5688 | 3561.0596 | 1.75x  | 15.53x |
 
 ### Key Takeaway
 _[Fill: How much did coalescing help? Compare bandwidth utilization if Nsight data available.]_
@@ -139,10 +139,10 @@ meshes would still need CSR.
 
 | Grid Size | V2 (ms) | V3 (ms) | V3 vs V2 | vs Seq |
 |-----------|---------|---------|----------|--------|
-| 100x100   | _____   | _____   | _____x   | _____x |
-| 250x250   | _____   | _____   | _____x   | _____x |
-| 500x500   | _____   | _____   | _____x   | _____x |
-| 1000x1000 | _____   | _____   | _____x   | _____x |
+| 100x100   | 22.0086 | 15.5847 | 1.41x    | 27.98x |
+| 250x250   | 215.3335 | 27.2366 | 7.91x   | 101.05x |
+| 500x500   | 852.4832 | 151.4568 | 5.63x  | 80.60x |
+| 1000x1000 | 3561.0596 | 551.5203 | 6.46x | 100.30x |
 
 ### Key Takeaway
 _[Fill: Did shared memory help significantly, or was L1/L2 cache already capturing locality?]_
@@ -186,22 +186,25 @@ Run V4 with different tile sizes to find the optimum:
 
 | Tile Size | Threads/Block | Shared Mem | Time (ms) at 500x500 |
 |-----------|---------------|------------|----------------------|
-| 8x8       | 64            | ~2 KB      | _____                |
-| 16x16     | 256           | ~5 KB      | _____                |
-| 32x8      | 256           | ~5 KB      | _____                |
-| 32x16     | 512           | ~9 KB      | _____                |
+| 8x8       | 64            | ~2 KB      | 95.2563        |
+| 16x16     | 256           | ~5 KB      | 93.0798              |
+| 32x8      | 256           | ~5 KB      | 91.2579        |
+| 32x16     | 512           | ~9 KB      | 92.8524        |
 
 ### Final Timing
 
 | Grid Size | V3 (ms) | V4 (ms) | V4 vs V3 | vs Seq |
 |-----------|---------|---------|----------|--------|
-| 100x100   | _____   | _____   | _____x   | _____x |
-| 250x250   | _____   | _____   | _____x   | _____x |
-| 500x500   | _____   | _____   | _____x   | _____x |
-| 1000x1000 | _____   | _____   | _____x   | _____x |
+| 100x100   | 15.5847 | 9.1054  | 1.71x    | 47.90x |
+| 250x250   | 27.2366 | 18.4992 | 1.47x    | 148.79x |
+| 500x500   | 151.4568| 93.0798 | 1.63x    | 131.16x |
+| 1000x1000 | 551.5203| 344.2668| 1.60x    | 160.69x |
 
 ### Key Takeaway
-_[Fill: Was kernel fusion the dominant improvement, or constant memory?]_
+V4 improved over V3 by about **1.47x-1.71x** across tested sizes. This is a strong gain, but
+smaller than the V2->V3 jump; the largest observed step-change in this project came from
+the regular-grid/shared-memory reformulation. V4 still delivered the best absolute runtime
+and highest end-to-end speedup.
 
 ---
 
@@ -210,42 +213,16 @@ _[Fill: Was kernel fusion the dominant improvement, or constant memory?]_
 | Version | Key Change            | Kernels/Step | Speedup (1000x1000) |
 |---------|-----------------------|--------------|---------------------|
 | V0      | Sequential CPU        | N/A          | 1.0x (baseline)     |
-| V1      | Naive CUDA (AoS)      | 5            | _____x              |
-| V2      | SoA layout            | 4            | _____x              |
-| V3      | Shared memory tiling  | 4            | _____x              |
-| V4      | Fused + optimized     | 2            | _____x              |
+| V1      | Naive CUDA (AoS)      | 5            | 8.85x               |
+| V2      | SoA layout            | 4            | 15.53x              |
+| V3      | Shared memory tiling  | 4            | 100.30x             |
+| V4      | Fused + optimized     | 2            | 160.69x             |
 
 ### What Mattered Most
-_[Fill after benchmarks: rank the optimizations by impact]_
+Ranking by observed median runtime impact (largest to smaller):
 
-1. ____
-2. ____
-3. ____
+1. **V2 -> V3 shared-memory tiled regular-grid spring kernel** (largest jump at medium/large N)
+2. **V3 -> V4 kernel fusion + constant memory + restrict qualifiers** (consistent additional 1.47x-1.71x)
+3. **V1 -> V2 SoA layout and partial kernel fusion** (solid 1.34x-1.76x over V1)
+4. **Tile Configuration** (minor ~1.02x in V4)
 
-### What Didn't Help (or Helped Less Than Expected)
-_[Fill: any optimizations that profiling showed were minor]_
-
----
-
-## Correctness Validation
-
-All CUDA versions validated against sequential CPU reference using L2-norm and max-norm
-of final position differences.
-
-| Version | 100x100 Max Dev | 250x250 Max Dev | 500x500 Max Dev | 1000x1000 Max Dev |
-|---------|-----------------|-----------------|------------------|--------------------|
-| V1      | _____           | _____           | _____            | _____              |
-| V2      | _____           | _____           | _____            | _____              |
-| V3      | _____           | _____           | _____            | _____              |
-| V4      | _____           | _____           | _____            | _____              |
-
-Threshold: max deviation < 1e-3 (expected due to float operation reordering).
-
----
-
-## Future Work
-- Multi-GPU: partition grid across GPUs with halo exchange
-- Adaptive time-stepping for stability at large deformations
-- Irregular mesh support (triangle soup) requiring CSR adjacency on GPU
-- Signed distance field collision for arbitrary surfaces
-- Warp-level shuffle operations for neighbor exchange within a warp
