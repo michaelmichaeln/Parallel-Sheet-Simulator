@@ -28,6 +28,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <cuda_runtime.h>
 
 #define CUDA_CHECK(call)                                                       \
@@ -322,7 +323,10 @@ int main(int argc, char* argv[]) {
     int num_steps = 1200;
     int tile_w    = 16;
     int tile_h    = 16;
+    std::string frames_path;   // empty = no frame output
+    constexpr int SAVE_EVERY  = 10;
 
+    // Parse positional args, then scan for --frames <path>
     if (argc >= 3) {
         grid_w = std::atoi(argv[1]);
         grid_h = std::atoi(argv[2]);
@@ -331,6 +335,11 @@ int main(int argc, char* argv[]) {
     if (argc >= 6) {
         tile_w = std::atoi(argv[4]);
         tile_h = std::atoi(argv[5]);
+    }
+    for (int i = 1; i < argc - 1; ++i) {
+        if (std::string(argv[i]) == "--frames") {
+            frames_path = argv[i + 1];
+        }
     }
 
     const int N = grid_w * grid_h;
@@ -478,6 +487,47 @@ int main(int argc, char* argv[]) {
 
     std::printf("v4,%d,%d,%d,%d,%d,%.4f\n",
                 grid_w, grid_h, N, num_springs, num_steps, elapsed_ms);
+
+    // --- Optional frame-saving pass (separate from timed benchmark) ---
+    if (!frames_path.empty()) {
+        std::fprintf(stderr, "\nFrame-saving pass -> %s  (every %d steps)\n",
+                     frames_path.c_str(), SAVE_EVERY);
+
+        // Reset to initial state
+        upload();
+
+        std::ofstream fout(frames_path);
+        fout << "step,row,col,x,y,z\n";
+
+        // Dump step 0
+        for (int r = 0; r < grid_h; ++r)
+            for (int c = 0; c < grid_w; ++c) {
+                int i = r * grid_w + c;
+                fout << 0 << ',' << r << ',' << c << ','
+                     << h.pos_x[i] << ',' << h.pos_y[i] << ',' << h.pos_z[i] << '\n';
+            }
+
+        for (int s = 1; s <= num_steps; ++s) {
+            fused_force_kernel<<<grid_2d, block_2d, shmem_bytes>>>(
+                d_px, d_py, d_pz, d_vx, d_vy, d_vz, d_fx, d_fy, d_fz,
+                grid_w, grid_h, tile_w, tile_h);
+            fused_integrate_collision_kernel<<<blocks_1d, BLOCK_1D>>>(
+                d_px, d_py, d_pz, d_vx, d_vy, d_vz, d_fx, d_fy, d_fz, N);
+
+            if (s % SAVE_EVERY == 0) {
+                CUDA_CHECK(cudaDeviceSynchronize());
+                download();
+                for (int r = 0; r < grid_h; ++r)
+                    for (int c = 0; c < grid_w; ++c) {
+                        int i = r * grid_w + c;
+                        fout << s << ',' << r << ',' << c << ','
+                             << h.pos_x[i] << ',' << h.pos_y[i] << ',' << h.pos_z[i] << '\n';
+                    }
+            }
+        }
+        fout.close();
+        std::fprintf(stderr, "Frames saved -> %s\n", frames_path.c_str());
+    }
 
     CUDA_CHECK(cudaEventDestroy(start_ev));
     CUDA_CHECK(cudaEventDestroy(stop_ev));
