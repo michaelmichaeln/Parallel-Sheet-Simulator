@@ -17,12 +17,11 @@ CUDAHOSTCXX="${CUDAHOSTCXX:-$(command -v g++-11 2>/dev/null || command -v g++)}"
 
 mkdir -p "$OUTDIR"
 
-# ── Build v4 if not already built ─────────────────────────────────────────────
-if [ ! -x "$BINDIR/cloth_sim_v4" ]; then
-    echo "=== Building v4 ==="
-    nvcc -O2 -std=c++17 -arch=sm_75 -ccbin "$CUDAHOSTCXX" \
-        -o "$BINDIR/cloth_sim_v4" simCode/cloth_sim_v4.cu
-fi
+# ── Always rebuild v4 (ensures --frames support from updated source) ───────────
+echo "=== Building v4 (with --frames support) ==="
+mkdir -p "$BINDIR"
+nvcc -O2 -std=c++17 -arch=sm_75 -ccbin "$CUDAHOSTCXX" \
+    -o "$BINDIR/cloth_sim_v4" simCode/cloth_sim_v4.cu && echo "  OK" || { echo "  FAIL"; exit 1; }
 
 # ── Sizes for frame generation ─────────────────────────────────────────────────
 # 500x500 / 1000x1000 omitted: ~800 MB / ~3 GB CSV, impractical for GIF
