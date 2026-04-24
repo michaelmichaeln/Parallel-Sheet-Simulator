@@ -262,25 +262,19 @@ int main(int argc, char* argv[]) {
 
     dump_frame(0);
 
-    // --- Timed simulation loop (excludes setup and I/O) ---
+    // --- Simulation loop ---
+    // When write_frames is true, I/O is interleaved (timing will include I/O overhead).
     auto t_start = std::chrono::high_resolution_clock::now();
 
     for (int s = 1; s <= num_steps; ++s) {
         step(particles, springs);
+        if (write_frames && s % Params::SAVE_EVERY == 0) {
+            dump_frame(s);
+        }
     }
 
     auto t_end = std::chrono::high_resolution_clock::now();
     double elapsed_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
-
-    // Frame output is OUTSIDE the timing loop
-    if (write_frames) {
-        for (int s = 1; s <= num_steps; ++s) {
-            if (s % Params::SAVE_EVERY == 0) {
-                // We already ran the sim — re-run is too expensive.
-                // For frame output, re-run with --frames which includes I/O in a separate pass.
-            }
-        }
-    }
 
     double steps_per_sec = num_steps / (elapsed_ms / 1000.0);
 
