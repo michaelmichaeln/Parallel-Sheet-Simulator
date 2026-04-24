@@ -493,7 +493,8 @@ int main(int argc, char* argv[]) {
         std::fprintf(stderr, "\nFrame-saving pass -> %s  (every %d steps)\n",
                      frames_path.c_str(), SAVE_EVERY);
 
-        // Reset to initial state
+        // Re-initialise host arrays to initial state (download() above overwrote them)
+        init_particles_host(h, grid_w, grid_h, cloth_size, drop_y);
         upload();
 
         std::ofstream fout(frames_path);

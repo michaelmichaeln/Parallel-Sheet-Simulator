@@ -1,7 +1,7 @@
 """
 Visualize cloth simulation frames as a GIF.
 
-Requirements: pip install matplotlib pandas numpy
+Requirements: pip install matplotlib pandas numpy pillow
 Run:
   python scripts/visualize.py
   python scripts/visualize.py --frames results/outputs/cloth_frames.csv --gif results/outputs/cloth_sim.gif
@@ -16,76 +16,139 @@ import numpy as np
 import pandas as pd
 
 
+# Scene constants — must match simulation parameters
+GROUND_Y   = -1.0
+SPHERE_CX, SPHERE_CY, SPHERE_CZ = 0.0, GROUND_Y + 0.6, 0.0
+SPHERE_R   = 0.6
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render cloth simulation frames to GIF.")
-    parser.add_argument(
-        "--frames",
-        default="results/outputs/cloth_frames.csv",
-        help="Path to cloth frames CSV.",
-    )
-    parser.add_argument(
-        "--gif",
-        default="results/outputs/cloth_sim.gif",
-        help="Output GIF path.",
-    )
+    parser.add_argument("--frames", default="results/outputs/cloth_frames.csv")
+    parser.add_argument("--gif",    default="results/outputs/cloth_sim.gif")
+    parser.add_argument("--fps",    type=int,   default=20)
+    parser.add_argument("--dpi",    type=int,   default=100)
+    parser.add_argument("--every",  type=int,   default=1,
+                        help="Only render every Nth saved step (use 2+ to speed up large grids)")
     return parser.parse_args()
+
+
+def draw_sphere(ax):
+    """Draw the collision sphere as a shaded surface."""
+    u = np.linspace(0, np.pi, 30)
+    v = np.linspace(0, 2 * np.pi, 30)
+    sx = SPHERE_R * np.outer(np.sin(u), np.cos(v)) + SPHERE_CX
+    sy = SPHERE_R * np.outer(np.cos(u), np.ones(30)) + SPHERE_CY
+    sz = SPHERE_R * np.outer(np.sin(u), np.sin(v)) + SPHERE_CZ
+    ax.plot_surface(sx, sy, sz, color="coral", alpha=0.55, linewidth=0, zorder=1)
+
+
+def draw_ground(ax):
+    """Draw a semi-transparent ground plane."""
+    gx = np.linspace(-1.6, 1.6, 2)
+    gz = np.linspace(-1.6, 1.6, 2)
+    gx_m, gz_m = np.meshgrid(gx, gz)
+    gy_m = np.full_like(gx_m, GROUND_Y)
+    ax.plot_surface(gx_m, gy_m, gz_m, alpha=0.12, color="sandybrown", linewidth=0)
 
 
 def main() -> int:
     args = parse_args()
     frames_path = Path(args.frames)
-    gif_path = Path(args.gif)
+    gif_path    = Path(args.gif)
     gif_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not frames_path.exists():
         print(f"Error: Frames file not found: {frames_path}")
         return 1
 
+    print(f"Loading {frames_path} ...")
     df = pd.read_csv(frames_path)
-    steps = sorted(df["step"].unique())
+
+    steps  = sorted(df["step"].unique())[::args.every]
     grid_h = int(df["row"].max()) + 1
     grid_w = int(df["col"].max()) + 1
+    print(f"Grid {grid_w}x{grid_h}  |  {len(steps)} frames to render")
 
-    def get_grid(step_num):
-        frame = df[df["step"] == step_num].sort_values(["row", "col"])
-        x = frame["x"].values.reshape(grid_h, grid_w)
-        y = frame["y"].values.reshape(grid_h, grid_w)
-        z = frame["z"].values.reshape(grid_h, grid_w)
-        return x, y, z
+    # Adaptive wire stride: target ~20 wires per axis so cloth looks like cloth
+    stride = max(1, min(grid_w, grid_h) // 20)
+    print(f"Wire stride: {stride}  (drawing every {stride}th grid line)")
 
-    fig = plt.figure(figsize=(9, 7))
-    ax = fig.add_subplot(111, projection="3d")
+    # Pre-load all frames into RAM — much faster than filtering in the update loop
+    print("Pre-loading frames ...")
+    all_x, all_y, all_z = [], [], []
+    for step in steps:
+        frame = df[df["step"] == step].sort_values(["row", "col"])
+        all_x.append(frame["x"].values.reshape(grid_h, grid_w))
+        all_y.append(frame["y"].values.reshape(grid_h, grid_w))
+        all_z.append(frame["z"].values.reshape(grid_h, grid_w))
 
-    x0, y0, z0 = get_grid(steps[0])
-    wire = [ax.plot_wireframe(x0, y0, z0, rstride=1, cstride=1, color="steelblue", linewidth=0.6, alpha=0.8)]
+    # Height-based colour for cloth (low = cooler blue, high = warm gold)
+    y_min_global = min(y.min() for y in all_y)
+    y_max_global = max(y.max() for y in all_y)
+    cmap = plt.cm.coolwarm_r
 
-    ground_y = -1.0
-    gx = np.linspace(-1.2, 1.2, 2)
-    gz = np.linspace(-1.2, 1.2, 2)
-    gx_mesh, gz_mesh = np.meshgrid(gx, gz)
-    gy_mesh = np.full_like(gx_mesh, ground_y)
-    ax.plot_surface(gx_mesh, gy_mesh, gz_mesh, alpha=0.15, color="sandybrown")
+    def cloth_color(y_grid):
+        norm = (y_grid - y_min_global) / max(y_max_global - y_min_global, 1e-6)
+        return cmap(norm)
 
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
-    ax.set_xlim(-1.2, 1.2)
-    ax.set_ylim(-1.2, 2.0)
-    ax.set_zlim(-1.2, 1.2)
-    title = ax.set_title(f"Step {steps[0]}")
+    # --- Figure setup ---
+    fig = plt.figure(figsize=(9, 7), facecolor="#1a1a2e")
+    ax  = fig.add_subplot(111, projection="3d", facecolor="#1a1a2e")
 
-    def update(frame_idx):
-        wire[0].remove()
-        x, y, z = get_grid(steps[frame_idx])
-        wire[0] = ax.plot_wireframe(x, y, z, rstride=1, cstride=1, color="steelblue", linewidth=0.6, alpha=0.8)
-        title.set_text(f"Step {steps[frame_idx]}")
-        return wire[0], title
+    ax.set_xlim(-1.6, 1.6)
+    ax.set_ylim(GROUND_Y - 0.1, 3.2)
+    ax.set_zlim(-1.6, 1.6)
 
-    ani = animation.FuncAnimation(fig, update, frames=len(steps), interval=60, blit=False)
+    ax.set_xlabel("X", color="white", labelpad=4)
+    ax.set_ylabel("Y", color="white", labelpad=4)
+    ax.set_zlabel("Z", color="white", labelpad=4)
+    ax.tick_params(colors="white", labelsize=7)
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.fill = False
+        pane.set_edgecolor("#333355")
+
+    ax.view_init(elev=22, azim=-50)
+
+    draw_ground(ax)
+    draw_sphere(ax)
+
+    # Initial cloth surface (height-coloured) + wireframe overlay
+    surf  = [ax.plot_surface(all_x[0], all_y[0], all_z[0],
+                              facecolors=cloth_color(all_y[0]),
+                              rstride=stride, cstride=stride,
+                              linewidth=0, antialiased=False, alpha=0.85, zorder=2)]
+    wire  = [ax.plot_wireframe(all_x[0], all_y[0], all_z[0],
+                                rstride=stride, cstride=stride,
+                                color="white", linewidth=0.25, alpha=0.25, zorder=3)]
+
+    sim_dt  = 0.005
+    title   = ax.set_title(
+        f"V4 CUDA  |  {grid_w}×{grid_h}  |  t = {steps[0] * sim_dt:.2f} s",
+        color="white", fontsize=11, pad=8)
 
     plt.tight_layout()
-    ani.save(gif_path, writer="pillow", fps=20)
-    print(f"Saved {gif_path}")
+
+    def update(i):
+        surf[0].remove()
+        wire[0].remove()
+        surf[0] = ax.plot_surface(all_x[i], all_y[i], all_z[i],
+                                   facecolors=cloth_color(all_y[i]),
+                                   rstride=stride, cstride=stride,
+                                   linewidth=0, antialiased=False, alpha=0.85, zorder=2)
+        wire[0] = ax.plot_wireframe(all_x[i], all_y[i], all_z[i],
+                                     rstride=stride, cstride=stride,
+                                     color="white", linewidth=0.25, alpha=0.25, zorder=3)
+        title.set_text(
+            f"V4 CUDA  |  {grid_w}×{grid_h}  |  t = {steps[i] * sim_dt:.2f} s")
+        return surf[0], wire[0], title
+
+    ani = animation.FuncAnimation(fig, update, frames=len(steps),
+                                  interval=1000 // args.fps, blit=False)
+
+    print(f"Rendering GIF -> {gif_path} ...")
+    ani.save(gif_path, writer="pillow", fps=args.fps, dpi=args.dpi)
+    print(f"Saved {gif_path}  ({gif_path.stat().st_size / 1e6:.1f} MB)")
     return 0
 
 
