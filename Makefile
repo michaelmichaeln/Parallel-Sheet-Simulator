@@ -16,7 +16,10 @@
 CXX      := g++
 NVCC     := nvcc
 CXXFLAGS := -O2 -std=c++17 -march=native
-NVFLAGS  := -O2 -std=c++17 -arch=sm_75
+
+# CUDA 11.7 requires GCC <= 11. Auto-detect g++-11; fall back to default g++.
+CUDAHOSTCXX := $(shell command -v g++-11 2>/dev/null || command -v g++)
+NVFLAGS  := -O2 -std=c++17 -arch=sm_75 -ccbin $(CUDAHOSTCXX)
 
 BINDIR   := bin
 SIMDIR   := simCode
