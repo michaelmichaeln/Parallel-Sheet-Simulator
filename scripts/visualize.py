@@ -18,9 +18,6 @@ import pandas as pd
 
 # Scene constants — must match simulation parameters
 GROUND_Y   = -1.0
-SPHERE_CX, SPHERE_CY, SPHERE_CZ = 0.0, GROUND_Y + 0.6, 0.0
-SPHERE_R   = 0.6
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render cloth simulation frames to GIF.")
@@ -32,30 +29,60 @@ def parse_args() -> argparse.Namespace:
                     help="Display animation instead of saving GIF")
     parser.add_argument("--every",  type=int,   default=1,
                         help="Only render every Nth saved step (use 2+ to speed up large grids)")
+    parser.add_argument("--sphere_r", type=float, default=0.6)
     return parser.parse_args()
 
 
-def draw_sphere(ax):
-    """Draw the collision sphere as a shaded surface."""
-    u = np.linspace(0, np.pi, 30)
-    v = np.linspace(0, 2 * np.pi, 30)
-    sx = SPHERE_R * np.outer(np.sin(u), np.cos(v)) + SPHERE_CX
-    sy = SPHERE_R * np.outer(np.cos(u), np.ones(30)) + SPHERE_CY
-    sz = SPHERE_R * np.outer(np.sin(u), np.sin(v)) + SPHERE_CZ
-    ax.plot_surface(sx, sy, sz, color="coral", alpha=0.55, linewidth=0, zorder=1)
+def draw_sphere(ax, SPHERE_R, SPHERE_CX, SPHERE_CY, SPHERE_CZ):
+    """Draw collision sphere using visualization axes:
+    X = horizontal, Y = north-south/depth, Z = height.
+    Simulation coordinates are x, y(height), z(depth),
+    so we plot as x, z, y.
+    """
+    u = np.linspace(0, np.pi, 50)
+    v = np.linspace(0, 2 * np.pi, 50)
+
+    sim_x = SPHERE_R * np.outer(np.sin(u), np.cos(v)) + SPHERE_CX
+    sim_y = SPHERE_R * np.outer(np.cos(u), np.ones_like(v)) + SPHERE_CY
+    sim_z = SPHERE_R * np.outer(np.sin(u), np.sin(v)) + SPHERE_CZ
+
+    ax.plot_surface(
+        sim_x,
+        sim_z,
+        sim_y,
+        color="coral",
+        alpha=0.55,
+        linewidth=0,
+        zorder=1,
+    )
 
 
 def draw_ground(ax):
-    """Draw a semi-transparent ground plane."""
+    """Draw ground plane using Z as height."""
     gx = np.linspace(-1.6, 1.6, 2)
-    gz = np.linspace(-1.6, 1.6, 2)
-    gx_m, gz_m = np.meshgrid(gx, gz)
-    gy_m = np.full_like(gx_m, GROUND_Y)
-    ax.plot_surface(gx_m, gy_m, gz_m, alpha=0.12, color="sandybrown", linewidth=0)
+    gy = np.linspace(-1.6, 1.6, 2)
+    gx_m, gy_m = np.meshgrid(gx, gy)
+    gz_m = np.full_like(gx_m, GROUND_Y)
+
+    ax.plot_surface(
+        gx_m,
+        gy_m,
+        gz_m,
+        alpha=0.12,
+        color="sandybrown",
+        linewidth=0,
+    )
 
 
 def main() -> int:
     args = parse_args()
+    GROUND_Y = args.ground_y if hasattr(args, "ground_y") else -1.0
+
+    SPHERE_R = args.sphere_r
+    SPHERE_CX = 0.0
+    SPHERE_CZ = 0.0
+    SPHERE_CY = GROUND_Y + SPHERE_R
+
     frames_path = Path(args.frames)
     gif_path    = Path(args.gif)
     gif_path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,28 +126,29 @@ def main() -> int:
     ax  = fig.add_subplot(111, projection="3d", facecolor="#1a1a2e")
 
     ax.set_xlim(-1.6, 1.6)
-    ax.set_ylim(GROUND_Y - 0.1, 3.2)
-    ax.set_zlim(-1.6, 1.6)
+    ax.set_zlim(GROUND_Y - 0.1, 3.2)
+    ax.set_ylim(-1.6, 1.6)
+    ax.set_box_aspect((3.2, 3.2, 4.3))
 
     ax.set_xlabel("X", color="white", labelpad=4)
-    ax.set_ylabel("Y", color="white", labelpad=4)
-    ax.set_zlabel("Z", color="white", labelpad=4)
+    ax.set_ylabel("Y / north-south", color="white", labelpad=4)
+    ax.set_zlabel("Z / height", color="white", labelpad=4)
     ax.tick_params(colors="white", labelsize=7)
     for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
         pane.fill = False
         pane.set_edgecolor("#333355")
 
-    ax.view_init(elev=22, azim=-50)
+    ax.view_init(elev=30, azim=-60)
 
     draw_ground(ax)
-    draw_sphere(ax)
+    draw_sphere(ax, SPHERE_R, SPHERE_CX, SPHERE_CY, SPHERE_CZ)
 
     # Initial cloth surface (height-coloured) + wireframe overlay
-    surf  = [ax.plot_surface(all_x[0], all_y[0], all_z[0],
+    surf  = [ax.plot_surface(all_x[0], all_z[0], all_y[0],
                               facecolors=cloth_color(all_y[0]),
                               rstride=stride, cstride=stride,
                               linewidth=0, antialiased=False, alpha=0.85, zorder=2)]
-    wire  = [ax.plot_wireframe(all_x[0], all_y[0], all_z[0],
+    wire  = [ax.plot_wireframe(all_x[0], all_z[0], all_y[0],
                                 rstride=stride, cstride=stride,
                                 color="white", linewidth=0.25, alpha=0.25, zorder=3)]
 
@@ -134,11 +162,11 @@ def main() -> int:
     def update(i):
         surf[0].remove()
         wire[0].remove()
-        surf[0] = ax.plot_surface(all_x[i], all_y[i], all_z[i],
+        surf[0] = ax.plot_surface(all_x[i], all_z[i], all_y[i],
                                    facecolors=cloth_color(all_y[i]),
                                    rstride=stride, cstride=stride,
                                    linewidth=0, antialiased=False, alpha=0.85, zorder=2)
-        wire[0] = ax.plot_wireframe(all_x[i], all_y[i], all_z[i],
+        wire[0] = ax.plot_wireframe(all_x[i], all_z[i], all_y[i],
                                      rstride=stride, cstride=stride,
                                      color="white", linewidth=0.25, alpha=0.25, zorder=3)
         title.set_text(
