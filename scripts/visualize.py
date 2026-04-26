@@ -28,6 +28,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gif",    default="results/outputs/cloth_sim.gif")
     parser.add_argument("--fps",    type=int,   default=20)
     parser.add_argument("--dpi",    type=int,   default=100)
+    parser.add_argument("--show", action="store_true",
+                    help="Display animation instead of saving GIF")
     parser.add_argument("--every",  type=int,   default=1,
                         help="Only render every Nth saved step (use 2+ to speed up large grids)")
     return parser.parse_args()
@@ -146,9 +148,12 @@ def main() -> int:
     ani = animation.FuncAnimation(fig, update, frames=len(steps),
                                   interval=1000 // args.fps, blit=False)
 
-    print(f"Rendering GIF -> {gif_path} ...")
-    ani.save(gif_path, writer="pillow", fps=args.fps, dpi=args.dpi)
-    print(f"Saved {gif_path}  ({gif_path.stat().st_size / 1e6:.1f} MB)")
+    if args.show:
+        plt.show()
+    else:
+        print(f"Rendering GIF -> {gif_path} ...")
+        ani.save(gif_path, writer="pillow", fps=args.fps, dpi=args.dpi)
+        print(f"Saved {gif_path}  ({gif_path.stat().st_size / 1e6:.1f} MB)")
     return 0
 
 
