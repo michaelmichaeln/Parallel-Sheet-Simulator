@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SIZE=500
+SIZE=1000
 TIMESTEPS=1200
 OUTFILE="results/tile_sensitivity.csv"
 
