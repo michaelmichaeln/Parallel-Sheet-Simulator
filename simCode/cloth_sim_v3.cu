@@ -321,8 +321,8 @@ void validate_against_reference(const HostSoA& soa, int grid_w, int grid_h) {
 
     double l2_norm = std::sqrt(l2_sum);
     bool pass = max_dev < 1e-3f;
-    std::fprintf(stderr, "Validation vs %s: L2=%.6e  max=%.6e  %s\n",
-                 fname, l2_norm, (double)max_dev, pass ? "PASS" : "FAIL");
+    // std::fprintf(stderr, "Validation vs %s: L2=%.6e  max=%.6e  %s\n",
+    //              fname, l2_norm, (double)max_dev, pass ? "PASS" : "FAIL");
 }
 
 // ---------------------------------------------------------------------------
