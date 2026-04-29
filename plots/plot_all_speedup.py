@@ -2,7 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 
 sizes = []
-runtimes = {
+speedups = {
     "V1": [],
     "V2": [],
     "V3": [],
@@ -15,29 +15,30 @@ with open("results/speedup_vs_size.csv") as f:
     for row in reader:
         try:
             size = int(row["size"])
-            t1 = float(row["v1_ms"])
-            t2 = float(row["v2_ms"])
-            t3 = float(row["v3_ms"])
-            t4 = float(row["v4_ms"])
+            v0 = float(row["v0_ms"])
+            times = {
+                "V1": float(row["v1_ms"]),
+                "V2": float(row["v2_ms"]),
+                "V3": float(row["v3_ms"]),
+                "V4": float(row["v4_ms"]),
+            }
         except:
             continue
 
         sizes.append(size)
-        runtimes["V1"].append(t1)
-        runtimes["V2"].append(t2)
-        runtimes["V3"].append(t3)
-        runtimes["V4"].append(t4)
+        for version in speedups:
+            speedups[version].append(v0 / times[version])
 
 colors = {"V1": "steelblue", "V2": "tomato", "V3": "seagreen", "V4": "mediumpurple"}
 
 plt.figure(figsize=(10, 6))
 
-for version, vals in runtimes.items():
+for version, vals in speedups.items():
     plt.plot(sizes, vals, marker="o", linewidth=2, color=colors[version], label=version)
 
     for x, y in zip(sizes, vals):
         plt.annotate(
-            f"{y:.1f} ms",
+            f"{y:.2f}x",
             (x, y),
             textcoords="offset points",
             xytext=(0, 8),
@@ -47,17 +48,17 @@ for version, vals in runtimes.items():
         )
 
 plt.xlabel("Cloth Size (N x N)")
-plt.ylabel("Runtime (ms)")
-plt.title("Runtime vs Cloth Size (All Versions)")
+plt.ylabel("Speedup vs Sequential")
+plt.title("Speedup vs Cloth Size (All Versions)")
 
 plt.xticks(sizes)
-plt.ylim(0, max(v for vals in runtimes.values() for v in vals) * 1.15)
+plt.ylim(0, max(v for vals in speedups.values() for v in vals) * 1.15)
 
 plt.legend(title="Version")
 plt.grid(True, linestyle="--", linewidth=0.5)
 plt.tight_layout()
 
-plt.savefig("plots/runtime_vs_size_all.png", dpi=300)
+plt.savefig("plots/speedup_vs_size_all.png", dpi=300)
 plt.close()
 
-print("Runtime plot saved to plots/runtime_vs_size_all.png")
+print("Saved combined plot to plots/speedup_vs_size_all.png")
