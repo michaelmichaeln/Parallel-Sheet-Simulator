@@ -1,0 +1,40 @@
+#!/bin/bash
+
+SIZE=500
+TIMESTEPS=300
+OUTFILE="results/tile_bottleneck_profile.csv"
+
+mkdir -p results
+
+echo "tile_w,tile_h,threads_per_block,total_ms,force_percent,force_avg_us,integrate_percent,integrate_avg_us" > "$OUTFILE"
+
+run_profile() {
+    TW=$1
+    TH=$2
+    THREADS=$((TW * TH))
+
+    echo "Profiling tile ${TW}x${TH}..."
+
+    output=$(nvprof ./bin/cloth_sim_v4 "$SIZE" "$SIZE" "$TIMESTEPS" \
+        --tile_w "$TW" --tile_h "$TH" 2>&1)
+
+    total_ms=$(echo "$output" | awk '/Done in/ {print $3; exit}')
+
+    force_line=$(echo "$output" | grep "fused_force_kernel" | head -1)
+    integrate_line=$(echo "$output" | grep "fused_integrate_collision_kernel" | head -1)
+    
+    force_percent=$(echo "$force_line" | awk '{print $1}' | tr -d '%')
+    force_avg_us=$(echo "$force_line" | awk '{print $4}')
+    
+    integrate_percent=$(echo "$integrate_line" | awk '{print $1}' | tr -d '%')
+    integrate_avg_us=$(echo "$integrate_line" | awk '{print $4}')
+
+    echo "$TW,$TH,$THREADS,$total_ms,$force_percent,$force_avg_us,$integrate_percent,$integrate_avg_us" >> "$OUTFILE"
+}
+
+run_profile 8 8
+run_profile 16 16
+run_profile 32 8
+run_profile 32 16
+
+echo "Saved to $OUTFILE"

@@ -364,7 +364,7 @@ int main(int argc, char* argv[]) {
     // Upload constant parameters
     SimParams h_params;
     h_params.cloth_size   = cloth_size;
-    h_params.dt           = 0.005f;
+    h_params.dt           = 0.003f; // 0.005f
     h_params.k_struct     = 2000.0f;
     h_params.k_shear      = 600.0f;
     h_params.k_bend       = 400.0f;
