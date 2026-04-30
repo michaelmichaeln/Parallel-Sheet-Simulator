@@ -9,7 +9,6 @@
 #   make v3         Build V3 (shared memory tiling)
 #   make v4         Build V4 (fully optimized)
 #   make all        Build everything
-#   make bench      Build all + run full benchmark suite
 #   make clean      Remove binaries
 # ==============================================================================
 
@@ -24,7 +23,7 @@ NVFLAGS  := -O2 -std=c++17 -arch=sm_75 -ccbin $(CUDAHOSTCXX)
 BINDIR   := bin
 SIMDIR   := simCode
 
-.PHONY: all seq v1 v2 v3 v4 bench clean dirs
+.PHONY: all seq v1 v2 v3 v4 clean dirs
 
 all: dirs seq v1 v2 v3 v4
 
@@ -45,10 +44,6 @@ v3: dirs
 
 v4: dirs
 	$(NVCC) $(NVFLAGS) -o $(BINDIR)/cloth_sim_v4 $(SIMDIR)/cloth_sim_v4.cu
-
-bench: all
-	bash scripts/benchmark.sh
-	python3 scripts/plot_results.py
 
 clean:
 	rm -rf $(BINDIR)
