@@ -1,24 +1,15 @@
 // =============================================================================
-// cloth_sim_v4.cu
-// V4: Fully Optimized — fused kernels, constant memory, __restrict__, tunable
+// cloth_sim_v4.cu — Fully Optimized CUDA Cloth Simulator
 // Ankita Kundu & Michael Nguyen — 15-418/618 Final Project
 //
-// Key changes from V3:
-//  1. KERNEL FUSION: clear_forces + external_forces + spring_forces merged
-//     into a single kernel. Force accumulator lives entirely in registers —
-//     never written to or read from global memory as an intermediate.
-//     This eliminates 2 kernel launches and 2 global R/W passes per step.
-//  2. CONSTANT MEMORY: All simulation parameters loaded into __constant__
-//     memory for broadcast-efficient access across warps.
-//  3. __restrict__ POINTERS: Enables compiler to assume no aliasing between
-//     position (read) and velocity (read/write) arrays.
-//  4. CONFIGURABLE BLOCK SIZE: Accepts BLOCK_W/BLOCK_H via CLI for sweeping
-//     optimal tile size without recompilation (defaults to 16x16).
-//  5. FUSED INTEGRATE+COLLISION: Single kernel for velocity update, position
-//     update, ground collision, and sphere collision.
+// Key optimizations:
+//   - Fused kernels: forces computed in registers, single global write
+//   - Shared memory tiling with halo for spring neighbors
+//   - Constant memory for simulation parameters
+//   - __restrict__ pointers for compiler optimization
 //
 // Compile:  nvcc -O2 -std=c++17 -arch=sm_75 -o cloth_sim_v4 cloth_sim_v4.cu
-// Run:      ./cloth_sim_v4 <GRID_W> <GRID_H> [NUM_STEPS] [BLOCK_W] [BLOCK_H]
+// Run:      ./cloth_sim_v4 500 500 1200 --tile_w 32 --tile_h 8
 // =============================================================================
 
 #include <iostream>
@@ -41,32 +32,25 @@
         }                                                                       \
     } while (0)
 
-// ---------------------------------------------------------------------------
-// Constant memory for simulation parameters
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Simulation parameters in constant memory
+// ===========================================================================
 struct SimParams {
-    float cloth_size;
-    float dt;
+    float cloth_size, dt, mass, inv_mass;
     float k_struct, k_shear, k_bend;
-    float damping, air_drag;
-    float gravity_y;
+    float damping, air_drag, gravity_y;
     float ground_y, ground_restitution, ground_friction;
     int   sphere_enabled;
     float sphere_radius, sphere_cx, sphere_cy, sphere_cz;
-    float mass, inv_mass;
 };
 
 __constant__ SimParams d_params;
 
-// ---------------------------------------------------------------------------
-// Max tile size for shared memory allocation (compile-time upper bound).
-// Actual tile size is set at runtime; shared memory is dynamically sized.
-// ---------------------------------------------------------------------------
-constexpr int HALO     = 2;
+constexpr int HALO = 2;  // Halo size for shared memory tiles
 
-// ---------------------------------------------------------------------------
-// Host setup (SoA)
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Host data structures (Structure-of-Arrays)
+// ===========================================================================
 struct HostSoA {
     std::vector<float> pos_x, pos_y, pos_z;
     std::vector<float> vel_x, vel_y, vel_z;
@@ -91,10 +75,10 @@ void init_particles_host(HostSoA& soa, int grid_w, int grid_h, float cloth_size,
         }
 }
 
-// ---------------------------------------------------------------------------
-// FUSED KERNEL: clear + external + spring forces
-// Computes total force per particle entirely in registers, writes once.
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Fused force kernel: gravity + drag + springs
+// Force accumulator stays in registers, single write to global memory
+// ===========================================================================
 __global__
 void fused_force_kernel(const float* __restrict__ px,
                         const float* __restrict__ py,
@@ -107,7 +91,8 @@ void fused_force_kernel(const float* __restrict__ px,
                         float* __restrict__ fz,
                         int grid_w, int grid_h,
                         int tile_w, int tile_h) {
-    // Dynamic shared memory: 3 arrays of (tile_w+4) x (tile_h+4)
+    
+    // Set up shared memory for tile + halo
     extern __shared__ float smem[];
     int sm_w = tile_w + 2 * HALO;
     int sm_h = tile_h + 2 * HALO;
@@ -123,7 +108,7 @@ void fused_force_kernel(const float* __restrict__ px,
     int tile_r0 = blockIdx.y * tile_h - HALO;
     int tile_c0 = blockIdx.x * tile_w - HALO;
 
-    // Cooperative load of tile + halo
+    // Cooperatively load tile + halo into shared memory
     int tid = threadIdx.y * tile_w + threadIdx.x;
     int total_sm = sm_w * sm_h;
     int tpb = tile_w * tile_h;
@@ -155,12 +140,12 @@ void fused_force_kernel(const float* __restrict__ px,
     float my_y = s_py[li];
     float my_z = s_pz[li];
 
-    // Start with external forces (gravity + drag) — fused with clear
+    // Initialize force with gravity + drag
     float ax = vx[gi] * (-d_params.air_drag);
     float ay = d_params.gravity_y * d_params.mass + vy[gi] * (-d_params.air_drag);
     float az = vz[gi] * (-d_params.air_drag);
 
-    // Rest lengths computed from grid spacing
+    // Compute rest lengths from grid spacing
     float dx_s = d_params.cloth_size / (grid_w - 1);
     float dz_s = d_params.cloth_size / (grid_h - 1);
     float rest_h  = dx_s;
@@ -169,6 +154,7 @@ void fused_force_kernel(const float* __restrict__ px,
     float rest_bh = 2.0f * dx_s;
     float rest_bv = 2.0f * dz_s;
 
+    // Accumulate spring forces
     #define ACCUMULATE(dr, dc, K, REST)                                        \
     {                                                                           \
         int nr = g_row + (dr);                                                  \
@@ -186,16 +172,19 @@ void fused_force_kernel(const float* __restrict__ px,
         }                                                                       \
     }
 
+    // Structural springs
     ACCUMULATE( 0,  1, d_params.k_struct, rest_h);
     ACCUMULATE( 0, -1, d_params.k_struct, rest_h);
     ACCUMULATE( 1,  0, d_params.k_struct, rest_v);
     ACCUMULATE(-1,  0, d_params.k_struct, rest_v);
 
+    // Shear springs
     ACCUMULATE( 1,  1, d_params.k_shear, rest_d);
     ACCUMULATE( 1, -1, d_params.k_shear, rest_d);
     ACCUMULATE(-1,  1, d_params.k_shear, rest_d);
     ACCUMULATE(-1, -1, d_params.k_shear, rest_d);
 
+    // Bend springs
     ACCUMULATE( 0,  2, d_params.k_bend, rest_bh);
     ACCUMULATE( 0, -2, d_params.k_bend, rest_bh);
     ACCUMULATE( 2,  0, d_params.k_bend, rest_bv);
@@ -203,15 +192,15 @@ void fused_force_kernel(const float* __restrict__ px,
 
     #undef ACCUMULATE
 
-    // Single global write of total force
+    // Single write of total force
     fx[gi] = ax;
     fy[gi] = ay;
     fz[gi] = az;
 }
 
-// ---------------------------------------------------------------------------
-// FUSED KERNEL: integrate + collision
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Fused integrate + collision kernel
+// ===========================================================================
 __global__
 void fused_integrate_collision_kernel(float* __restrict__ px,
                                       float* __restrict__ py,
@@ -226,7 +215,7 @@ void fused_integrate_collision_kernel(float* __restrict__ px,
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
 
-    // Integration
+    // Integrate velocity and position
     float nvx = vx[i] + fx[i] * d_params.inv_mass * d_params.dt;
     float nvy = vy[i] + fy[i] * d_params.inv_mass * d_params.dt;
     float nvz = vz[i] + fz[i] * d_params.inv_mass * d_params.dt;
@@ -272,9 +261,9 @@ void fused_integrate_collision_kernel(float* __restrict__ px,
     vx[i] = nvx;  vy[i] = nvy;  vz[i] = nvz;
 }
 
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Validation against CPU reference
+// ===========================================================================
 void validate_against_reference(const HostSoA& soa, int grid_w, int grid_h) {
     char fname[256];
     std::snprintf(fname, sizeof(fname), "results/outputs/ref_%dx%d.bin", grid_w, grid_h);
@@ -313,24 +302,18 @@ void validate_against_reference(const HostSoA& soa, int grid_w, int grid_h) {
     //              fname, l2_norm, (double)max_dev, pass ? "PASS" : "FAIL");
 }
 
-// ---------------------------------------------------------------------------
-// main
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Main simulation
+// ===========================================================================
 int main(int argc, char* argv[]) {
-    int grid_w    = 25;
-    int grid_h    = 25;
-    int num_steps = 1200;
-
-    int tile_w = 16;
-    int tile_h = 16;
-
-    float sphere_r = 0.6f;
-    float drop_y   = 3.0f;
-
+    // Default parameters
+    int grid_w = 25, grid_h = 25, num_steps = 1200;
+    int tile_w = 16, tile_h = 16;
+    float sphere_r = 0.6f, drop_y = 3.0f;
     std::string frames_path;
     constexpr int SAVE_EVERY = 10;
 
-    // Parse positional args, then scan for --frames <path>
+    // Parse command line arguments
     if (argc >= 3) {
         grid_w = std::atoi(argv[1]);
         grid_h = std::atoi(argv[2]);
@@ -341,7 +324,6 @@ int main(int argc, char* argv[]) {
 
     for (int i = 4; i < argc; ++i) {
         std::string arg = argv[i];
-
         if (arg == "--tile_w" && i + 1 < argc) {
             tile_w = std::atoi(argv[++i]);
         } else if (arg == "--tile_h" && i + 1 < argc) {
@@ -361,10 +343,10 @@ int main(int argc, char* argv[]) {
     const int N = grid_w * grid_h;
     const float cloth_size = 3.0f;
 
-    // Upload constant parameters
+    // Initialize simulation parameters
     SimParams h_params;
     h_params.cloth_size   = cloth_size;
-    h_params.dt           = 0.003f; // 0.005f
+    h_params.dt           = 0.003f;
     h_params.k_struct     = 2000.0f;
     h_params.k_shear      = 600.0f;
     h_params.k_bend       = 400.0f;
@@ -384,7 +366,7 @@ int main(int argc, char* argv[]) {
 
     CUDA_CHECK(cudaMemcpyToSymbol(d_params, &h_params, sizeof(SimParams)));
 
-    // Launch configs
+    // Launch configurations
     constexpr int BLOCK_1D = 256;
     int blocks_1d = (N + BLOCK_1D - 1) / BLOCK_1D;
 
@@ -404,15 +386,12 @@ int main(int argc, char* argv[]) {
     std::fprintf(stderr, "Drop height: %.2f\n", drop_y);
     std::fprintf(stderr, "Sphere radius: %.2f\n", sphere_r);
 
-    // --- Host setup ---
+    // Initialize host data
     HostSoA h;
     init_particles_host(h, grid_w, grid_h, cloth_size, drop_y);
 
-    // --- Device allocation ---
-    float *d_px, *d_py, *d_pz;
-    float *d_vx, *d_vy, *d_vz;
-    float *d_fx, *d_fy, *d_fz;
-
+    // Allocate device memory
+    float *d_px, *d_py, *d_pz, *d_vx, *d_vy, *d_vz, *d_fx, *d_fy, *d_fz;
     CUDA_CHECK(cudaMalloc(&d_px, N * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_py, N * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_pz, N * sizeof(float)));
@@ -443,7 +422,7 @@ int main(int argc, char* argv[]) {
 
     upload();
 
-    // --- Warm-up ---
+    // Warm-up kernel launch
     fused_force_kernel<<<grid_2d, block_2d, shmem_bytes>>>(
         d_px, d_py, d_pz, d_vx, d_vy, d_vz, d_fx, d_fy, d_fz,
         grid_w, grid_h, tile_w, tile_h);
@@ -451,9 +430,9 @@ int main(int argc, char* argv[]) {
         d_px, d_py, d_pz, d_vx, d_vy, d_vz, d_fx, d_fy, d_fz, N);
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    upload();  // reset state
+    upload();  // Reset state
 
-    // --- Timed simulation ---
+    // Timed simulation
     cudaEvent_t start_ev, stop_ev;
     CUDA_CHECK(cudaEventCreate(&start_ev));
     CUDA_CHECK(cudaEventCreate(&stop_ev));
@@ -476,6 +455,7 @@ int main(int argc, char* argv[]) {
 
     download();
 
+    // Check for NaN/Inf
     bool has_nan = false;
     for (int i = 0; i < N; ++i) {
         if (std::isnan(h.pos_x[i]) || std::isnan(h.pos_y[i]) || std::isnan(h.pos_z[i]) ||
@@ -487,6 +467,7 @@ int main(int argc, char* argv[]) {
 
     validate_against_reference(h, grid_w, grid_h);
 
+    // Count springs for output
     int num_springs = 0;
     for (int r = 0; r < grid_h; ++r)
         for (int c = 0; c < grid_w; ++c) {
@@ -505,24 +486,22 @@ int main(int argc, char* argv[]) {
     std::printf("v4,%d,%d,%d,%d,%d,%.4f\n",
                 grid_w, grid_h, N, num_springs, num_steps, elapsed_ms);
 
-    // --- Optional frame-saving pass (separate from timed benchmark) ---
+    // Optional frame output (separate from timed run)
     if (!frames_path.empty()) {
         std::fprintf(stderr, "\nFrame-saving pass -> %s  (every %d steps)\n",
                      frames_path.c_str(), SAVE_EVERY);
 
-        // Re-initialise host arrays to initial state (download() above overwrote them)
         init_particles_host(h, grid_w, grid_h, cloth_size, drop_y);
         upload();
 
         std::ofstream fout(frames_path);
-        // Error checking 
         if (!fout) {
             std::fprintf(stderr, "ERROR: could not open frames file: %s\n", frames_path.c_str());
             return 1;
         }
         fout << "step,row,col,x,y,z\n";
 
-        // Dump step 0
+        // Dump initial frame
         for (int r = 0; r < grid_h; ++r)
             for (int c = 0; c < grid_w; ++c) {
                 int i = r * grid_w + c;
@@ -552,6 +531,7 @@ int main(int argc, char* argv[]) {
         std::fprintf(stderr, "Frames saved -> %s\n", frames_path.c_str());
     }
 
+    // Cleanup
     CUDA_CHECK(cudaEventDestroy(start_ev));
     CUDA_CHECK(cudaEventDestroy(stop_ev));
     CUDA_CHECK(cudaFree(d_px)); CUDA_CHECK(cudaFree(d_py)); CUDA_CHECK(cudaFree(d_pz));

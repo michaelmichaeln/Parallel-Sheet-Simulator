@@ -1,5 +1,0 @@
-tile_w,tile_h,threads_per_block,total_ms,force_percent,force_avg_us,integrate_percent,integrate_avg_us
-8,8,64,25.200,GPU,13.180ms,44.40,38.841us
-16,16,256,24.654,GPU,12.614ms,45.41,38.874us
-32,8,256,24.377,GPU,12.315ms,46.01,38.962us
-32,16,512,24.738,GPU,12.681ms,45.26,38.930us

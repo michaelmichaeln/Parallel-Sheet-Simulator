@@ -1,5 +1,0 @@
-tile_w,tile_h,threads_per_block,status,total_ms,force_kernel_found,integrate_kernel_found,log_file
-8,8,64,PASS,100.774,1,1,results/nsys_logs/tile_8x8.txt
-16,16,256,PASS,98.791,1,1,results/nsys_logs/tile_16x16.txt
-32,8,256,PASS,97.604,1,1,results/nsys_logs/tile_32x8.txt
-32,16,512,PASS,98.818,1,1,results/nsys_logs/tile_32x16.txt

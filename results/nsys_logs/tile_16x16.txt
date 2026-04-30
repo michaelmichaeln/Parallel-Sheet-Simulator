@@ -1,96 +1,0 @@
-=== V4: Fully Optimized CUDA ===
-Grid:  500 x 500  (250000 particles)
-Steps: 1200   dt=0.0030
-Tile:  16x16  Shared mem: 4800 bytes
-2D grid: (32, 32)   1D blocks: 977
-
-Drop height: 3.00
-Sphere radius: 0.60
-Springs: 1495002
-Done in 98.791 ms  (12146.8 steps/s)
-v4,500,500,250000,1495002,1200,98.7912
-Generating '/tmp/nsys-report-1dd4.qdstrm'
-[1/8] [0%                          ] tile_16x16.nsys-rep[1/8] [0%                          ] tile_16x16.nsys-rep[1/8] [8%                          ] tile_16x16.nsys-rep[1/8] [9%                          ] tile_16x16.nsys-rep[1/8] [11%                         ] tile_16x16.nsys-rep[1/8] [13%                         ] tile_16x16.nsys-rep[1/8] [=17%                        ] tile_16x16.nsys-rep[1/8] [==20%                       ] tile_16x16.nsys-rep[1/8] [=================72%        ] tile_16x16.nsys-rep[1/8] [===================82%      ] tile_16x16.nsys-rep[1/8] [========================100%] tile_16x16.nsys-rep[1/8] [========================100%] tile_16x16.nsys-rep
-[2/8] [0%                          ] tile_16x16.sqlite[2/8] [1%                          ] tile_16x16.sqlite[2/8] [2%                          ] tile_16x16.sqlite[2/8] [3%                          ] tile_16x16.sqlite[2/8] [4%                          ] tile_16x16.sqlite[2/8] [5%                          ] tile_16x16.sqlite[2/8] [6%                          ] tile_16x16.sqlite[2/8] [7%                          ] tile_16x16.sqlite[2/8] [8%                          ] tile_16x16.sqlite[2/8] [9%                          ] tile_16x16.sqlite[2/8] [10%                         ] tile_16x16.sqlite[2/8] [11%                         ] tile_16x16.sqlite[2/8] [12%                         ] tile_16x16.sqlite[2/8] [13%                         ] tile_16x16.sqlite[2/8] [14%                         ] tile_16x16.sqlite[2/8] [=15%                        ] tile_16x16.sqlite[2/8] [=16%                        ] tile_16x16.sqlite[2/8] [=17%                        ] tile_16x16.sqlite[2/8] [==18%                       ] tile_16x16.sqlite[2/8] [==19%                       ] tile_16x16.sqlite[2/8] [==20%                       ] tile_16x16.sqlite[2/8] [==21%                       ] tile_16x16.sqlite[2/8] [===22%                      ] tile_16x16.sqlite[2/8] [===23%                      ] tile_16x16.sqlite[2/8] [===24%                      ] tile_16x16.sqlite[2/8] [====25%                     ] tile_16x16.sqlite[2/8] [====26%                     ] tile_16x16.sqlite[2/8] [====27%                     ] tile_16x16.sqlite[2/8] [====28%                     ] tile_16x16.sqlite[2/8] [=====29%                    ] tile_16x16.sqlite[2/8] [=====30%                    ] tile_16x16.sqlite[2/8] [=====31%                    ] tile_16x16.sqlite[2/8] [=====32%                    ] tile_16x16.sqlite[2/8] [======33%                   ] tile_16x16.sqlite[2/8] [======34%                   ] tile_16x16.sqlite[2/8] [======35%                   ] tile_16x16.sqlite[2/8] [=======36%                  ] tile_16x16.sqlite[2/8] [=======37%                  ] tile_16x16.sqlite[2/8] [=======38%                  ] tile_16x16.sqlite[2/8] [=======39%                  ] tile_16x16.sqlite[2/8] [========40%                 ] tile_16x16.sqlite[2/8] [========41%                 ] tile_16x16.sqlite[2/8] [========42%                 ] tile_16x16.sqlite[2/8] [=========43%                ] tile_16x16.sqlite[2/8] [=========44%                ] tile_16x16.sqlite[2/8] [=========45%                ] tile_16x16.sqlite[2/8] [=========46%                ] tile_16x16.sqlite[2/8] [==========47%               ] tile_16x16.sqlite[2/8] [==========48%               ] tile_16x16.sqlite[2/8] [==========49%               ] tile_16x16.sqlite[2/8] [===========50%              ] tile_16x16.sqlite[2/8] [===========51%              ] tile_16x16.sqlite[2/8] [===========52%              ] tile_16x16.sqlite[2/8] [===========53%              ] tile_16x16.sqlite[2/8] [============54%             ] tile_16x16.sqlite[2/8] [============55%             ] tile_16x16.sqlite[2/8] [============56%             ] tile_16x16.sqlite[2/8] [============57%             ] tile_16x16.sqlite[2/8] [=============58%            ] tile_16x16.sqlite[2/8] [=============59%            ] tile_16x16.sqlite[2/8] [=============60%            ] tile_16x16.sqlite[2/8] [==============61%           ] tile_16x16.sqlite[2/8] [==============62%           ] tile_16x16.sqlite[2/8] [==============63%           ] tile_16x16.sqlite[2/8] [==============64%           ] tile_16x16.sqlite[2/8] [===============65%          ] tile_16x16.sqlite[2/8] [===============66%          ] tile_16x16.sqlite[2/8] [===============67%          ] tile_16x16.sqlite[2/8] [================68%         ] tile_16x16.sqlite[2/8] [================69%         ] tile_16x16.sqlite[2/8] [================70%         ] tile_16x16.sqlite[2/8] [================71%         ] tile_16x16.sqlite[2/8] [=================72%        ] tile_16x16.sqlite[2/8] [=================73%        ] tile_16x16.sqlite[2/8] [=================74%        ] tile_16x16.sqlite[2/8] [==================75%       ] tile_16x16.sqlite[2/8] [==================76%       ] tile_16x16.sqlite[2/8] [==================77%       ] tile_16x16.sqlite[2/8] [==================78%       ] tile_16x16.sqlite[2/8] [===================79%      ] tile_16x16.sqlite[2/8] [===================80%      ] tile_16x16.sqlite[2/8] [===================81%      ] tile_16x16.sqlite[2/8] [===================82%      ] tile_16x16.sqlite[2/8] [====================83%     ] tile_16x16.sqlite[2/8] [====================84%     ] tile_16x16.sqlite[2/8] [====================85%     ] tile_16x16.sqlite[2/8] [=====================86%    ] tile_16x16.sqlite[2/8] [=====================87%    ] tile_16x16.sqlite[2/8] [=====================88%    ] tile_16x16.sqlite[2/8] [=====================89%    ] tile_16x16.sqlite[2/8] [======================90%   ] tile_16x16.sqlite[2/8] [======================91%   ] tile_16x16.sqlite[2/8] [======================92%   ] tile_16x16.sqlite[2/8] [=======================93%  ] tile_16x16.sqlite[2/8] [=======================94%  ] tile_16x16.sqlite[2/8] [=======================95%  ] tile_16x16.sqlite[2/8] [=======================96%  ] tile_16x16.sqlite[2/8] [========================97% ] tile_16x16.sqlite[2/8] [========================98% ] tile_16x16.sqlite[2/8] [========================99% ] tile_16x16.sqlite[2/8] [========================100%] tile_16x16.sqlite[2/8] [========================100%] tile_16x16.sqlite
-SKIPPED: /afs/andrew.cmu.edu/usr14/akundu2/private/15418/Parallel-Sheet-Simulator/results/nsys_logs/tile_16x16.sqlite does not contain NV Tools Extension (NVTX) data.
-[3/8] Executing 'nvtxsum' stats report
-[4/8] Executing 'osrtsum' stats report
-
-Operating System Runtime API Statistics:
-
- Time (%)  Total Time (ns)  Num Calls    Avg (ns)       Med (ns)     Min (ns)    Max (ns)     StdDev (ns)            Name         
- --------  ---------------  ---------  -------------  -------------  ---------  -----------  -------------  ----------------------
-     52.5      328,214,314          2  164,107,157.0  164,107,157.0  1,888,347  326,325,967  229,412,041.2  sem_wait              
-     40.2      251,469,031         12   20,955,752.6    1,270,051.0     69,049  150,980,942   43,516,649.1  poll                  
-      6.6       41,380,955        532       77,783.8        9,077.0      1,136   11,227,768      633,709.4  ioctl                 
-      0.2        1,509,617         31       48,697.3        9,006.0      6,770      981,409      173,752.4  mmap64                
-      0.1          772,105         10       77,210.5       60,057.5     51,981      244,620       59,054.4  sem_timedwait         
-      0.0          279,210        244        1,144.3        1,087.0      1,000        2,997          211.0  read                  
-      0.0          238,855         46        5,192.5        3,185.5      1,289       21,337        4,967.1  fopen                 
-      0.0          229,696         49        4,687.7        4,062.0      2,027       10,283        1,633.3  open64                
-      0.0          208,025          5       41,605.0       38,362.0     35,490       53,474        7,653.5  pthread_create        
-      0.0          200,820         18       11,156.7        9,062.5      1,551       47,688       11,289.0  mmap                  
-      0.0          122,846          1      122,846.0      122,846.0    122,846      122,846            0.0  pthread_cond_wait     
-      0.0           62,219          6       10,369.8        7,240.0      3,609       29,037        9,617.4  fgets                 
-      0.0           38,664         25        1,546.6        1,259.0      1,002        4,160          801.3  fclose                
-      0.0           21,582          5        4,316.4        3,494.0      1,882        6,869        2,024.2  munmap                
-      0.0           17,672          6        2,945.3        1,486.5      1,038        6,925        2,549.3  fread                 
-      0.0           17,111          6        2,851.8        2,728.5      1,028        5,514        1,474.3  open                  
-      0.0           11,986          8        1,498.3        1,181.0      1,075        2,251          511.6  write                 
-      0.0            9,841          3        3,280.3        3,073.0      2,098        4,670        1,298.5  pipe2                 
-      0.0            9,662          2        4,831.0        4,831.0      3,030        6,632        2,547.0  socket                
-      0.0            7,897          1        7,897.0        7,897.0      7,897        7,897            0.0  connect               
-      0.0            3,351          2        1,675.5        1,675.5      1,238        2,113          618.7  pthread_cond_broadcast
-      0.0            2,797          1        2,797.0        2,797.0      2,797        2,797            0.0  fopen64               
-      0.0            2,684          1        2,684.0        2,684.0      2,684        2,684            0.0  fflush                
-      0.0            2,333          1        2,333.0        2,333.0      2,333        2,333            0.0  fwrite                
-      0.0            1,220          1        1,220.0        1,220.0      1,220        1,220            0.0  bind                  
-
-[5/8] Executing 'cudaapisum' stats report
-
-CUDA API Statistics:
-
- Time (%)  Total Time (ns)  Num Calls    Avg (ns)      Med (ns)     Min (ns)    Max (ns)   StdDev (ns)           Name         
- --------  ---------------  ---------  ------------  ------------  ----------  ----------  -----------  ----------------------
-     37.7       61,700,056          1  61,700,056.0  61,700,056.0  61,700,056  61,700,056          0.0  cudaMemcpyToSymbol    
-     34.5       56,412,829      2,402      23,485.8      39,056.0       2,040      70,548     19,379.0  cudaLaunchKernel      
-     25.7       41,988,536          1  41,988,536.0  41,988,536.0  41,988,536  41,988,536          0.0  cudaEventSynchronize  
-      1.5        2,529,868         18     140,548.2     144,447.0      49,178     184,319     34,643.3  cudaMemcpy            
-      0.3          411,241          9      45,693.4      72,138.0       3,089      94,083     38,575.5  cudaFree              
-      0.2          319,190          9      35,465.6      48,560.0       2,752      91,684     31,981.2  cudaMalloc            
-      0.1          122,055          1     122,055.0     122,055.0     122,055     122,055          0.0  cudaDeviceSynchronize 
-      0.0           45,536          2      22,768.0      22,768.0       3,255      42,281     27,595.5  cudaEventRecord       
-      0.0            6,507          2       3,253.5       3,253.5         699       5,808      3,612.6  cudaEventCreate       
-      0.0            2,793          2       1,396.5       1,396.5         409       2,384      1,396.5  cudaEventDestroy      
-      0.0              902          1         902.0         902.0         902         902          0.0  cuModuleGetLoadingMode
-
-[6/8] Executing 'gpukernsum' stats report
-
-CUDA Kernel Statistics:
-
- Time (%)  Total Time (ns)  Instances  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)                                                  Name                                                
- --------  ---------------  ---------  --------  --------  --------  --------  -----------  ----------------------------------------------------------------------------------------------------
-     51.7       50,269,667      1,201  41,856.5  41,793.0    39,456    58,432        723.9  fused_force_kernel(const float *, const float *, const float *, const float *, const float *, const…
-     48.3       46,963,165      1,201  39,103.4  39,008.0    37,856    56,864      1,097.3  fused_integrate_collision_kernel(float *, float *, float *, float *, float *, float *, const float …
-
-[7/8] Executing 'gpumemtimesum' stats report
-
-CUDA Memory Operation Statistics (by time):
-
- Time (%)  Total Time (ns)  Count  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)      Operation     
- --------  ---------------  -----  --------  --------  --------  --------  -----------  ------------------
-     66.8          964,352     13  74,180.9  79,872.0     1,376    82,400     21,896.2  [CUDA memcpy HtoD]
-     33.2          480,064      6  80,010.7  79,968.0    79,936    80,128         80.1  [CUDA memcpy DtoH]
-
-[8/8] Executing 'gpumemsizesum' stats report
-
-CUDA Memory Operation Statistics (by size):
-
- Total (MB)  Count  Avg (MB)  Med (MB)  Min (MB)  Max (MB)  StdDev (MB)      Operation     
- ----------  -----  --------  --------  --------  --------  -----------  ------------------
-     12.000     13     0.923     1.000     0.000     1.000        0.277  [CUDA memcpy HtoD]
-      6.000      6     1.000     1.000     1.000     1.000        0.000  [CUDA memcpy DtoH]
-
-Generated:
-    /afs/andrew.cmu.edu/usr14/akundu2/private/15418/Parallel-Sheet-Simulator/results/nsys_logs/tile_16x16.nsys-rep
-    /afs/andrew.cmu.edu/usr14/akundu2/private/15418/Parallel-Sheet-Simulator/results/nsys_logs/tile_16x16.sqlite

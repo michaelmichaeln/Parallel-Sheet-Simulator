@@ -27,6 +27,8 @@ pip install -r requirements.txt
 
 ## Build
 
+Build all versions:
+
 ```bash
 make all
 ```
@@ -34,79 +36,94 @@ make all
 Build specific targets:
 
 ```bash
-make seq
-make v1
-make v2
-make v3
-make v4
+make seq    # CPU baseline (works locally and on GHC)
+make v1     # CUDA V1 (requires CUDA toolkit)
+make v2     # CUDA V2
+make v3     # CUDA V3
+make v4     # CUDA V4
+```
+
+**For GHC (with CUDA 11.7):** Set the host compiler explicitly:
+
+```bash
+CUDAHOSTCXX=/usr/bin/g++-11 make all
 ```
 
 ## Run
 
 ```bash
-# Sequential baseline
+# Sequential baseline (runs anywhere with g++)
 bin/cloth_sim_seq 500 500 1200
 
-# CUDA V4 (optional tile dimensions for V4)
+# CUDA versions (require GPU)
+bin/cloth_sim_v1 500 500 1200
+bin/cloth_sim_v2 500 500 1200
+bin/cloth_sim_v3 500 500 1200
+
+# V4 with optional tile dimensions (default: 32x8)
 bin/cloth_sim_v4 500 500 1200 32 8
 ```
 
-## Benchmark Workflows
+## Benchmarking
 
-### 1) Standard benchmark (Makefile)
-
-```bash
-make bench
-```
-
-This runs:
-- `scripts/benchmark.sh` to write `results/metrics/benchmark_results.csv`
-- `scripts/plot_results.py` to generate plots in `results/plots/`
-
-### 2) Full GHC benchmark workflow
-
-Use the full script when running your report pipeline on GHC:
+Run experiments using the Python script:
 
 ```bash
-CUDAHOSTCXX=/usr/bin/g++-11 bash scripts/run_full_bench.sh
+python3 scripts/run_experiment.py --help
 ```
 
-This script:
-- builds seq + all CUDA versions
-- generates CPU references if missing
-- benchmarks V1-V4 across target sizes
-- prints summary and speedup tables
-- runs a correctness check against CPU references
+For manual benchmarking, run multiple trials and capture CSV output:
 
-Note: CUDA 11.7 requires an older host compiler on GHC, so set `CUDAHOSTCXX=/usr/bin/g++-11` as shown.
+```bash
+# Example: benchmark sequential version
+for i in {1..5}; do
+    bin/cloth_sim_seq 100 100 1200 >> results/metrics/seq_bench.csv
+done
+```
+
+Output format: `version,grid_w,grid_h,num_particles,num_springs,num_steps,elapsed_ms`
 
 ## Plotting
 
-Generate plots from benchmark CSV:
+Generate plots from collected data:
 
 ```bash
-python3 scripts/plot_results.py
+# Use plotting scripts in plots/
+python3 plots/plot_speedup.py
+python3 plots/plot_runtime.py
+python3 plots/plot_all_speedup.py
+python3 plots/profiling.py
 ```
 
-Output files:
-- `results/plots/speedup.png`
-- `results/plots/absolute_time.png`
-- `results/plots/version_progression.png`
+View visualization tools:
+
+```bash
+python3 scripts/visualize.py
+```
 
 ## Repository Layout
 
 ```text
 cloth_sim_seq.cpp                Sequential CPU reference
 simCode/                         CUDA implementations (V1-V4)
+  cloth_sim_v1.cu                V1: Naive CUDA port
+  cloth_sim_v2.cu                V2: SoA + kernel fusion
+  cloth_sim_v3.cu                V3: Shared memory tiling
+  cloth_sim_v4.cu                V4: Fully optimized
+plots/                           Result plots and plotting scripts
+  *.png                          Generated performance plots
+  *.py                           Python plotting utilities
 scripts/
-  benchmark.sh                   Median timing benchmark (5 repeats)
-  run_full_bench.sh              Full GHC benchmark/report pipeline
-  plot_results.py                Plot generation from benchmark CSV
+  generate_frames.sh             Generate visualization frames
   run_experiment.py              Config-based scene runner
-results/
+  visualize.py                   Data visualization tool
+results/                         Generated outputs (gitignored)
   metrics/                       Benchmark CSV/log outputs
-  plots/                         Generated plot PNG files
-  outputs/                       CPU reference binaries for validation
-  journal/                       Report journal and analysis notes
+  plots/                         Additional plot outputs
+  outputs/                       Simulation outputs and references
+  journal/                       Analysis notes
 Makefile                         Build/benchmark targets
+README.md                        This file
+requirements.txt                 Python dependencies
+.gitignore                       Git ignore rules
 ```

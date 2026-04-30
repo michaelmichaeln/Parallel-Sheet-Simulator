@@ -2,18 +2,24 @@
 .vscode/
 .venv/
 __pycache__/
+*.pyc
 bin/
+cloth_sim_seq
+cloth_sim_v*
+*.o
+*.out
 cloth_frames.csv
 cloth_meta.csv
 *.gif
+*.csv
+*.bin
+plots/*
 
-results/metrics/*
-results/outputs/*
-results/plots/*
-!results/metrics/.gitkeep
-!results/outputs/.gitkeep
-!results/plots/.gitkeep
-!results/journal/
+results/*
+
+
+
+.DS_Store
 
 decision_trees_lesson_plan.md
 
